@@ -23,5 +23,9 @@
         "CONV1_ID"
       ]
     }
-  }
+  },
+  "mqtt_server": "localhost",
+  "mqtt_port": 1999,
+  "mqtt_subscribe": "rpicenter/response/HangupsBot/+",
+  "mqtt_publish": "rpicenter/request/HangupsBot/"
 }

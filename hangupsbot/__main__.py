@@ -16,12 +16,15 @@ import hangups
 from hangups import http_utils
 from hangups.conversation import Conversation
 from hangups.ui.utils import get_conv_name
+from hangups.conversation_event import ChatMessageSegment
 
+import hangupsbot
 import hangupsbot.config
 from hangupsbot.version import __version__
 from hangupsbot.utils import text_to_segments
 from hangupsbot.handlers import handler
-
+from hangupsbot.mqtt import mqtt
+import threading
 
 LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 
@@ -33,7 +36,8 @@ class HangupsBot:
         self._refresh_token_path = refresh_token_path
         self._max_retries = max_retries
         self._retry = 0
-
+        self.mqtt = None
+        self.loop = None
         # These are populated by on_connect when it's called.
         self._conv_list = None        # hangups.ConversationList
         self._user_list = None        # hangups.UserList
@@ -197,6 +201,28 @@ class HangupsBot:
             print('  {} ({})'.format(get_conv_name(c, truncate=True), c.id_))
         print()
 
+        try:
+            self.loop = asyncio.get_event_loop()
+            if self.config['mqtt_server'] is not None:
+                server=self.config['mqtt_server'] 
+                port=int(self.config['mqtt_port'])
+                subscribe_topic=self.config['mqtt_subscribe']
+                publish_topic=self.config['mqtt_publish']
+            else:
+                server="localhost" 
+                port=1999 
+                subscribe_topic="rpicenter/response/HangupsBot/+"
+                publish_topic="rpicenter/request/HangupsBot/"
+     
+            self.mqtt = mqtt(server=server, port=port, subscribe_topic=subscribe_topic, publish_topic=publish_topic,callback=self.reply)
+
+            i = threading.Thread(target=self.mqtt.run)
+            i.daemon = True
+            i.start()    
+        except Exception as ex:
+            print("MQTT Error: " + str(ex))
+            if self.mqtt is not None: self.mqtt.cleanup()
+
     @asyncio.coroutine
     def _on_event(self, conv_event):
         """Handle conversation events"""
@@ -206,7 +232,17 @@ class HangupsBot:
     def _on_disconnect(self):
         """Handle disconnecting"""
         print(_('Connection lost!'))
+        if self.mqtt is not None: self.mqtt.cleanup()
 
+    def reply(self, requestID=None, msg=None):
+        print("HB send Message Conv: " + str(requestID) + " Msg: " + str(msg))
+        if requestID is not None and msg is not None and self.loop is not None:
+            convs = self.find_conversations(requestID)
+            for conv in convs:
+                if conv is not None:
+                    #print("Send: " + str(msg) + " to: " + str(conv.id_))
+                    segments = ChatMessageSegment.from_str(msg)
+                    self.loop.call_soon_threadsafe(asyncio.async, conv.send_message(segments))
 
 def main():
     """Main entry point"""
@@ -257,7 +293,6 @@ def main():
     # Start Hangups bot
     bot = HangupsBot(args.token, args.config)
     bot.run()
-
 
 if __name__ == '__main__':
     main()
