@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-#import config
+from datetime import datetime
 import paho.mqtt.client as mq
 import hangupsbot
 
@@ -26,7 +26,7 @@ class IInput:
     def run(self): raise NotImplementedError
 
 class mqtt(IInput):
-    def __init__(self,server=None, port=None, subscribe_topic=None, publish_topic=None, callback=None):
+    def __init__(self, server, port, subscribe_topic, publish_topic=None, callback=None):
         super(mqtt, self).__init__(callback)
         self.last_requestID = None
         self.client = mq.Client()
@@ -34,10 +34,6 @@ class mqtt(IInput):
         self.client.on_message = self.__client_message__
         self.subscribe_topic = subscribe_topic
         self.publish_topic = publish_topic
-        #server = "localhost"
-        #port = 1999
-        #self.subscribe_topic = "rpicenter/response/HangupsBot/+"
-        #self.publish_topic = "rpicenter/request/HangupsBot/"
         self.client.connect(server, int(port), 60)
 
     def __client_connect__(self, client, userdata, flags, rc):
@@ -47,8 +43,11 @@ class mqtt(IInput):
     def __client_message__(self, client, userdata, msg):
         print("MQTT Received Topic: " + msg.topic + " Msg: " + str(msg.payload))
         _msg = msg.payload.decode(encoding="utf-8", errors="ignore")
-        self.last_requestID = msg.topic.replace(self.subscribe_topic.replace('+','').replace('#', ''),'')
-        
+        _topics = msg.topic.split("/")        
+        requestID = _topics[-1] # last section is the msg_id
+        self.last_requestID = requestID 
+
+        #self.last_requestID = msg.topic.replace(self.subscribe_topic.replace('+','').replace('#', ''),'')
         if (self.__callback__ != None):
             for cb in self.__callback__:
                 try:
@@ -57,17 +56,24 @@ class mqtt(IInput):
                 except Exception as ex:
                     print("MQTT Input Error: " + str(ex))
 
-    def publish_msg(self, topic, msg):
-        self.client.publish(topic, msg)
+    def publish_msg(self, msg, topic=None):
+        _topic = self.publish_topic
+        if topic is not None: _topic = topic
+        self.client.publish(_topic, str(msg))
 
     def reply(self, requestID, msg):
-        topic = str(self.publish_topic) + str(requestID)
+        topic = str(self.publish_topic) + str(datetime.now()) + "/" + str(requestID)
         print("MQTT Publishing Message Topic: " + str(topic) + " Msg: " + str(msg))
-        self.publish_msg(topic, str(msg))
+        self.publish_msg(topic=topic, msg=str(msg))
 
     def run(self):
-        print("Starting MQTT...")
-        self.client.loop_forever()
+        print("Starting MQTT Input...")
+        try:
+            if self.client is not None: self.client.loop_start()
+        except Exception as ex:
+            print("MQTT Input Error: " + str(ex))
 
     def cleanup(self):
-        if self.client is not None: self.client.disconnect()
+        if self.client is not None:
+            self.client.loop_stop() 
+            self.client.disconnect()

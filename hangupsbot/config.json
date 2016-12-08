@@ -26,6 +26,6 @@
   },
   "mqtt_server": "localhost",
   "mqtt_port": 1999,
-  "mqtt_subscribe": "rpicenter/response/HangupsBot/+",
-  "mqtt_publish": "rpicenter/request/HangupsBot/"
+  "mqtt_subscribe": "hangupsbot/inbox/rpicenter/#",
+  "mqtt_publish": "rpicenter/inbox/hangupsbot/"
 }
