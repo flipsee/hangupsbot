@@ -59,11 +59,11 @@ class mqtt(IInput):
     def publish_msg(self, msg, topic=None):
         _topic = self.publish_topic
         if topic is not None: _topic = topic
+        print("MQTT Publishing Message Topic: " + str(_topic) + " Msg: " + str(msg))
         self.client.publish(_topic, str(msg))
 
     def reply(self, requestID, msg):
         topic = str(self.publish_topic) + str(datetime.now()) + "/" + str(requestID)
-        print("MQTT Publishing Message Topic: " + str(topic) + " Msg: " + str(msg))
         self.publish_msg(topic=topic, msg=str(msg))
 
     def run(self):

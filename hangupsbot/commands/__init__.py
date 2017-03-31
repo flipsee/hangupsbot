@@ -1,7 +1,6 @@
 from hangups.conversation import Conversation
 import hangupsbot
 from hangupsbot.utils import text_to_segments
-import paho.mqtt.client as mqtt
 from copy import deepcopy
 import os, glob, asyncio
 import threading, time

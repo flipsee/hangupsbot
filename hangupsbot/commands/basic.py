@@ -1,14 +1,11 @@
 from hangups.ui.utils import get_conv_name
-from hangupsbot.utils import text_to_segments
+from hangupsbot.utils import text_to_segments, contain_number, get_word_with_number, get_url, get_emails
 from hangupsbot.commands import command
 import hangupsbot.commands
 import hangupsbot
 from sgDataApi.BusArrival import BusArrival
 from sgDataApi.BusStop import BusStop
-import subprocess
-import sys
-import nltk
-import re
+import sys, subprocess, nltk, re, tweepy
 from textblob import TextBlob
 
 ### TODO ###
@@ -18,17 +15,19 @@ from textblob import TextBlob
 #4. how to send back chat when getting return from mqtt?
 # multi word command?
 
-def contain_number(word):    
-    return any(i.isdigit() for i in word)
+def post_tweet(bot, msg):
+    consumer_key=bot.config['twitter_consumer_key']
+    consumer_secret=bot.config['twitter_consumer_secret']
+    access_token=bot.config['twitter_access_token']
+    access_token_secret=bot.config['twitter_access_token_secret']
 
-def get_word_with_number(text):
-    for word in text.split():
-        if contain_number(word) == True: return word
-    return ''
+    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+    auth.secure = True
+    auth.set_access_token(access_token, access_token_secret)
 
-def get_url(text):
-    urls = re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text)
-    return ''.join(urls)
+    api = tweepy.API(auth)
+    print(api.me().name)
+    api.update_status(status=msg)
 
 
 @command.register_unknown
@@ -38,7 +37,7 @@ def unknown_command(bot, event, *args):
         text_to_segments("I'm confused")
     )
 
-@command.register
+@command.register(admin=True)
 def getsubtitle(bot, event, *args):
     cmd = "getsubtitle"
     print("Command: " + cmd)
@@ -48,7 +47,7 @@ def getsubtitle(bot, event, *args):
     out = process.communicate()[0]
     yield from event.conv.send_message(text_to_segments('Status: ' + str(out)))
 
-@command.register
+@command.register(admin=True)
 def download(bot, event, *args):
     cmd = "magic -dl " + get_url(' '.join(args))
     print("Command: " + cmd)
@@ -104,7 +103,7 @@ def fortune(bot, event, *args):
     yield from event.conv.send_message(text_to_segments(str(out)))
 
 
-@command.register
+@command.register(admin=True)
 def rpicenter(bot, event, *args):
     sentence = ' '.join(args)
 
@@ -115,5 +114,24 @@ def rpicenter(bot, event, *args):
     bot.mqtt.reply(requestID=str(__conv_name__),msg=str(sentence))
     
     status = "Request Sent to rpicenter: " + str(__conv_name__)
+    yield from event.conv.send_message(text_to_segments(str(status)))
+
+@command.register(admin=True, keyword=['tweet'])
+def tweet(bot, event, *args):
+    sentence = ' '.join(args)
+    post_tweet(bot=bot, msg=sentence)
+    status = str(sentence) + " Tweeted!"
+    yield from event.conv.send_message(text_to_segments(str(status)))
+
+@command.register(admin=True, keyword=['tweet','fortune'])
+def tweet_fortune(bot, event, *args):
+    cmd = '/usr/games/fortune -n 140'
+    process = subprocess.Popen(
+        cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE#, shell=True
+    )
+    out = process.communicate()[0]
+    post_tweet(bot=bot, msg=sentence)
+    status = str(out) + " Tweeted!"
+
     yield from event.conv.send_message(text_to_segments(str(status)))
 

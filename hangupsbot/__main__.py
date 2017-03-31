@@ -211,8 +211,8 @@ class HangupsBot:
             else:
                 server="localhost" 
                 port=1999 
-                subscribe_topic="rpicenter/response/HangupsBot/+"
-                publish_topic="rpicenter/request/HangupsBot/"
+                subscribe_topic="hangupsbot/inbox/#"
+                publish_topic="rpicenter/inbox/hangupsbot/"
      
             self.mqtt = mqtt(server=server, port=port, subscribe_topic=subscribe_topic, publish_topic=publish_topic,callback=self.reply)
 

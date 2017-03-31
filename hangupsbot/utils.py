@@ -1,4 +1,4 @@
-import unicodedata, string
+import unicodedata, string, re
 
 from hangups import ChatMessageSegment
 
@@ -28,3 +28,24 @@ def word_in_text(word, text):
 def strip_quotes(text):
     """Strip quotes and whitespace at the beginning and end of text"""
     return text.strip(string.whitespace + '\'"')
+
+def contain_number(word):
+    return any(i.isdigit() for i in word)
+
+def get_word_with_number(text):
+    for word in text.split():
+        if contain_number(word) == True: return word
+    return ''
+
+def get_url(text):
+    urls = re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text)
+    return ''.join(urls)
+
+def get_emails(s):
+    """Returns an iterator of matched emails found in string s."""
+    # Removing lines that start with '//' because the regular expression
+    # mistakenly matches patterns like 'http://foo@bar.com' as '//foo@bar.com'.
+    regex = re.compile(("([a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`"
+                "{|}~-]+)*(@|\sat\s)(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(\.|"
+                "\sdot\s))+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)"))
+    return (email[0] for email in re.findall(regex, s) if not email[0].startswith('//'))

@@ -61,9 +61,9 @@ def handle_command(bot, event):
     commands_admin_list = command.get_admin_commands(bot, event.conv_id)
     if commands_admin_list and line_args[1].lower() in commands_admin_list:
         admins_list = bot.get_config_suboption(event.conv_id, 'admins')
-        if event.user_id.chat_id not in admins_list:
+        if event.user.full_name not in admins_list:
             yield from event.conv.send_message(
-                text_to_segments(_('{}: I\'m sorry, Dave. I\'m afraid I can\'t do that.').format(event.user.full_name))
+                text_to_segments(_('{}: I\'m sorry. I can\'t do that.').format(event.user.full_name))
             )
             raise StopEventHandling
 
